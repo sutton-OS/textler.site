@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown TextEdit</title>
+<style id="app-style">
+  :root {
+    --ui-font: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
+    --text-font: "iA Writer Quattro", "Iowan Old Style", "Baskerville", "Palatino", "Times New Roman", serif;
+    --editor-font: "iA Writer Mono", "Menlo", "SF Mono", "Monaco", monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--ui-font);
+    color: var(--text);
+    background:
+      radial-gradient(1200px 800px at 10% -10%, var(--bg-2), transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, var(--bg-3), transparent 55%),
+      var(--bg);
+  }
+
+  body.light {
+    --bg: #f2ede6;
+    --bg-2: #fbf7f2;
+    --bg-3: #e3ddd4;
+    --panel: #fcf8f3;
+    --panel-2: #f4eee6;
+    --text: #1f1b16;
+    --muted: #6f6258;
+    --border: #d8cfc5;
+    --accent: #9b6a46;
+    --code-bg: #efe7de;
+    --code-border: #dacdbf;
+    --shadow: rgba(0, 0, 0, 0.12);
+  }
+
+  body.dark {
+    --bg: #141312;
+    --bg-2: #1c1a18;
+    --bg-3: #0e0d0c;
+    --panel: #1b1917;
+    --panel-2: #23201d;
+    --text: #f1ece4;
+    --muted: #b3a79b;
+    --border: #3a342f;
+    --accent: #d0a57c;
+    --code-bg: #27231f;
+    --code-border: #3b332c;
+    --shadow: rgba(0, 0, 0, 0.55);
+  }
+
+  .app {
+    width: min(1200px, 96vw);
+    height: min(82vh, 880px);
+    margin: clamp(16px, 3vw, 32px) auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 22px 60px var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toolbar .group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .toolbar .sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+  }
+
+  .toolbar button {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .toolbar button:hover {
+    background: var(--panel);
+  }
+
+  .toolbar button:active {
+    transform: translateY(1px);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pane-title {
+    padding: 8px 16px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+
+  .preview-pane .pane-title {
+    background: var(--panel);
+  }
+
+  .editor-pane {
+    background: var(--panel-2);
+    border-right: 1px solid var(--border);
+  }
+
+  textarea {
+    flex: 1;
+    min-height: 0;
+    border: none;
+    background: transparent;
+    padding: 22px 20px 40px;
+    font-family: var(--editor-font);
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+    resize: none;
+    outline: none;
+    tab-size: 2;
+  }
+
+  .preview-pane {
+    background: var(--panel);
+  }
+
+  .preview {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 28px 36px 60px;
+  }
+
+  .preview, .export .page {
+    font-family: var(--text-font);
+    font-size: 18px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+
+  .preview p, .export .page p {
+    margin: 0 0 1.25em;
+  }
+
+  .preview h1, .export .page h1 {
+    font-size: 2.4rem;
+    line-height: 1.2;
+    margin: 0.6em 0 0.4em;
+    letter-spacing: -0.02em;
+  }
+
+  .preview h2, .export .page h2 {
+    font-size: 1.7rem;
+    line-height: 1.3;
+    margin: 1.2em 0 0.5em;
+  }
+
+  .preview h3, .export .page h3 {
+    font-size: 1.3rem;
+    line-height: 1.4;
+    margin: 1em 0 0.4em;
+  }
+
+  .preview ul, .preview ol, .export .page ul, .export .page ol {
+    margin: 0 0 1.2em;
+    padding-left: 1.4em;
+  }
+
+  .preview li, .export .page li {
+    margin: 0.35em 0;
+  }
+
+  .preview a, .export .page a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  .preview blockquote, .export .page blockquote {
+    margin: 0 0 1.4em;
+    padding: 0.2em 0 0.2em 1em;
+    border-left: 3px solid var(--accent);
+    color: var(--muted);
+  }
+
+  .preview code, .export .page code {
+    font-family: var(--editor-font);
+    font-size: 0.95em;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+  }
+
+  .preview pre, .export .page pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    padding: 16px;
+    border-radius: 10px;
+    overflow: auto;
+    margin: 0 0 1.4em;
+  }
+
+  .preview pre code, .export .page pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  .placeholder {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .export-body {
+    background: var(--bg);
+  }
+
+  .export {
+    padding: 56px 24px 80px;
+  }
+
+  .export .page {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 900px) {
+    .app {
+      height: auto;
+    }
+
+    .split {
+      grid-template-columns: 1fr;
+    }
+
+    .editor-pane {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview {
+      padding: 24px;
+    }
+  }
+</style>
+</head>
+<body class="light">
+  <div class="app" role="application">
+    <header class="toolbar">
+      <div class="group">
+        <button data-action="bold" title="Bold"><strong>B</strong></button>
+        <button data-action="italic" title="Italic"><em>I</em></button>
+        <button data-action="link" title="Link">Link</button>
+      </div>
+      <span class="sep"></span>
+      <div class="group">
+        <button data-action="h1" title="Heading 1">H1</button>
+        <button data-action="h2" title="Heading 2">H2</button>
+        <button data-action="h3" title="Heading 3">H3</button>
+      </div>
+      <span class="sep"></span>
+      <div class="group">
+        <button data-action="ul" title="Bulleted List">Bullets</button>
+        <button data-action="ol" title="Numbered List">Numbers</button>
+        <button data-action="quote" title="Quote">Quote</button>
+        <button data-action="code" title="Code">Code</button>
+      </div>
+      <span class="sep"></span>
+      <div class="group">
+        <button data-action="copy" id="copy-html" title="Copy HTML">Copy HTML</button>
+        <button data-action="theme" id="theme-toggle" title="Toggle Light/Dark">Light/Dark</button>
+      </div>
+    </header>
+
+    <main class="split">
+      <section class="pane editor-pane">
+        <div class="pane-title">Markdown</div>
+        <textarea id="editor" spellcheck="true" wrap="soft"></textarea>
+      </section>
+
+      <section class="pane preview-pane">
+        <div class="pane-title">Preview</div>
+        <div class="preview" id="preview"></div>
+      </section>
+    </main>
+  </div>
+
+<script type="text/plain" id="starter">
+# Untitled Note
+A calm, focused writing space. Type on the left. Preview on the right.
+
+## Quick syntax
+- **Bold** and *italic*
+- [Links](https://example.com)
+- `Inline code`
+
+> Blockquotes keep the thread of thought together.
+
+```
+function hello() {
+  return "Hello";
+}
+```
+</script>
+
+<script>
+  const editor = document.getElementById('editor');
+  const preview = document.getElementById('preview');
+  const toolbar = document.querySelector('.toolbar');
+  const copyButton = document.getElementById('copy-html');
+
+  function escapeHTML(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function escapeAttr(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function smartenPlain(text) {
+    return text
+      .replace(/\.{3}/g, '&hellip;')
+      .replace(/--/g, '&mdash;');
+  }
+
+  function renderInline(text) {
+    const codes = [];
+    text = text.replace(/`([^`]+)`/g, (_, code) => {
+      const html = `<code>${escapeHTML(code)}</code>`;
+      const token = `@@CODE${codes.length}@@`;
+      codes.push(html);
+      return token;
+    });
+
+    const links = [];
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+      const safeUrl = escapeAttr(url.trim());
+      const safeLabel = escapeHTML(label);
+      const html = `<a href="${safeUrl}" target="_blank" rel="noopener">${safeLabel}</a>`;
+      const token = `@@LINK${links.length}@@`;
+      links.push(html);
+      return token;
+    });
+
+    text = escapeHTML(text);
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+    text = smartenPlain(text);
+
+    text = text.replace(/@@LINK(\d+)@@/g, (_, i) => links[Number(i)]);
+    text = text.replace(/@@CODE(\d+)@@/g, (_, i) => codes[Number(i)]);
+    return text;
+  }
+
+  function renderMarkdown(md) {
+    const lines = md.replace(/\r\n?/g, '\n').split('\n');
+    let html = '';
+    let i = 0;
+    let paragraph = [];
+
+    function flushParagraph() {
+      if (paragraph.length) {
+        const text = paragraph.join(' ').replace(/\s+/g, ' ').trim();
+        if (text) {
+          html += `<p>${renderInline(text)}</p>`;
+        }
+        paragraph = [];
+      }
+    }
+
+    function collectList(ordered) {
+      const tag = ordered ? 'ol' : 'ul';
+      const items = [];
+      while (i < lines.length) {
+        const line = lines[i];
+        const match = line.match(ordered ? /^\s*\d+\.\s+(.+)/ : /^\s*[-*+]\s+(.+)/);
+        if (!match) break;
+
+        let item = match[1];
+        i++;
+
+        while (i < lines.length) {
+          const next = lines[i];
+          if (next.trim() === '') break;
+          if (/^```/.test(next)) break;
+          if (/^\s*>/.test(next)) break;
+          if (/^\s*(\d+\.\s+|[-*+]\s+)/.test(next)) break;
+          if (/^\s+/.test(next)) {
+            item += ' ' + next.trim();
+            i++;
+            continue;
+          }
+          break;
+        }
+
+        items.push(`<li>${renderInline(item.trim())}</li>`);
+        if (i < lines.length && lines[i].trim() === '') break;
+      }
+      html += `<${tag}>${items.join('')}</${tag}>`;
+    }
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (line.trim() === '') {
+        flushParagraph();
+        i++;
+        continue;
+      }
+
+      if (/^```/.test(line)) {
+        flushParagraph();
+        const langMatch = line.match(/^```([\w-]+)?/);
+        const lang = langMatch && langMatch[1] ? langMatch[1] : '';
+        i++;
+        const codeLines = [];
+        while (i < lines.length && !/^```/.test(lines[i])) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        if (i < lines.length) i++;
+        const codeHtml = escapeHTML(codeLines.join('\n'));
+        html += `<pre><code${lang ? ` class="language-${lang}"` : ''}>${codeHtml}</code></pre>`;
+        continue;
+      }
+
+      if (/^\s*>/.test(line)) {
+        flushParagraph();
+        const quoteLines = [];
+        while (i < lines.length && /^\s*>/.test(lines[i])) {
+          quoteLines.push(lines[i].replace(/^\s*>\s?/, ''));
+          i++;
+        }
+        html += `<blockquote>${renderMarkdown(quoteLines.join('\n'))}</blockquote>`;
+        continue;
+      }
+
+      const heading = line.match(/^(#{1,3})\s+(.+)/);
+      if (heading) {
+        flushParagraph();
+        const level = heading[1].length;
+        html += `<h${level}>${renderInline(heading[2].trim())}</h${level}>`;
+        i++;
+        continue;
+      }
+
+      if (/^\s*[-*+]\s+/.test(line)) {
+        flushParagraph();
+        collectList(false);
+        continue;
+      }
+
+      if (/^\s*\d+\.\s+/.test(line)) {
+        flushParagraph();
+        collectList(true);
+        continue;
+      }
+
+      paragraph.push(line.trim());
+      i++;
+    }
+
+    flushParagraph();
+    return html;
+  }
+
+  function render() {
+    const raw = editor.value;
+    if (raw.trim().length === 0) {
+      preview.innerHTML = '<p class="placeholder">Start writing...</p>';
+      return;
+    }
+    preview.innerHTML = renderMarkdown(raw);
+  }
+
+  function wrapSelection(before, after, placeholder) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = editor.value.slice(start, end);
+    const content = selected || placeholder;
+    const replacement = before + content + after;
+    editor.setRangeText(replacement, start, end, 'end');
+    if (!selected && placeholder) {
+      editor.selectionStart = start + before.length;
+      editor.selectionEnd = start + before.length + placeholder.length;
+    }
+    editor.focus();
+    render();
+  }
+
+  function transformSelectedLines(transformer) {
+    const value = editor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = value.indexOf('\n', end);
+    const endIndex = lineEnd === -1 ? value.length : lineEnd;
+    const block = value.slice(lineStart, endIndex);
+    const lines = block.split('\n');
+    const newLines = lines.map(transformer);
+    const newText = newLines.join('\n');
+    editor.setRangeText(newText, lineStart, endIndex, 'end');
+    editor.selectionStart = lineStart;
+    editor.selectionEnd = lineStart + newText.length;
+    editor.focus();
+    render();
+  }
+
+  function insertLink() {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = editor.value.slice(start, end);
+    const url = 'https://example.com';
+    if (selected) {
+      const replacement = `[${selected}](${url})`;
+      editor.setRangeText(replacement, start, end, 'end');
+      const urlStart = start + selected.length + 3;
+      editor.selectionStart = urlStart;
+      editor.selectionEnd = urlStart + url.length;
+    } else {
+      const label = 'link text';
+      const replacement = `[${label}](${url})`;
+      editor.setRangeText(replacement, start, end, 'end');
+      editor.selectionStart = start + 1;
+      editor.selectionEnd = start + 1 + label.length;
+    }
+    editor.focus();
+    render();
+  }
+
+  function insertCode() {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selected = editor.value.slice(start, end);
+
+    if (selected.includes('\n')) {
+      const block = '```\n' + selected + '\n```';
+      editor.setRangeText(block, start, end, 'end');
+      editor.selectionStart = start + 4;
+      editor.selectionEnd = start + 4 + selected.length;
+    } else {
+      wrapSelection('`', '`', 'code');
+    }
+  }
+
+  function buildExportHtml() {
+    const styleText = document.getElementById('app-style').textContent;
+    const theme = document.body.classList.contains('dark') ? 'dark' : 'light';
+    const content = editor.value.trim().length ? renderMarkdown(editor.value) : '';
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document</title>
+<style>
+${styleText}
+</style>
+</head>
+<body class="${theme} export-body">
+  <main class="export">
+    <article class="page">
+${content}
+    </article>
+  </main>
+</body>
+</html>`;
+  }
+
+  function flashCopy() {
+    const original = copyButton.textContent;
+    copyButton.textContent = 'Copied';
+    copyButton.disabled = true;
+    setTimeout(() => {
+      copyButton.textContent = original;
+      copyButton.disabled = false;
+    }, 1200);
+  }
+
+  async function copyHtml() {
+    const html = buildExportHtml();
+    try {
+      await navigator.clipboard.writeText(html);
+      flashCopy();
+    } catch (err) {
+      const temp = document.createElement('textarea');
+      temp.value = html;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      document.body.removeChild(temp);
+      flashCopy();
+    }
+  }
+
+  function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('dark');
+    body.classList.toggle('light');
+  }
+
+  toolbar.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+
+    if (action === 'bold') return wrapSelection('**', '**', 'bold text');
+    if (action === 'italic') return wrapSelection('*', '*', 'italic text');
+    if (action === 'link') return insertLink();
+    if (action === 'h1') return transformSelectedLines(line => {
+      if (!line.trim()) return line;
+      return '# ' + line.replace(/^\s*#{1,3}\s+/, '');
+    });
+    if (action === 'h2') return transformSelectedLines(line => {
+      if (!line.trim()) return line;
+      return '## ' + line.replace(/^\s*#{1,3}\s+/, '');
+    });
+    if (action === 'h3') return transformSelectedLines(line => {
+      if (!line.trim()) return line;
+      return '### ' + line.replace(/^\s*#{1,3}\s+/, '');
+    });
+    if (action === 'ul') return transformSelectedLines(line => {
+      if (!line.trim()) return line;
+      const stripped = line.replace(/^\s*(\d+\.|[-*+])\s+/, '');
+      return '- ' + stripped;
+    });
+    if (action === 'ol') {
+      let index = 1;
+      return transformSelectedLines(line => {
+        if (!line.trim()) return line;
+        const stripped = line.replace(/^\s*(\d+\.|[-*+])\s+/, '');
+        return `${index++}. ${stripped}`;
+      });
+    }
+    if (action === 'quote') return transformSelectedLines(line => {
+      if (!line.trim()) return line;
+      if (/^\s*>/.test(line)) return line;
+      return '> ' + line;
+    });
+    if (action === 'code') return insertCode();
+    if (action === 'copy') return copyHtml();
+    if (action === 'theme') return toggleTheme();
+  });
+
+  editor.value = document.getElementById('starter').textContent.trim();
+  editor.addEventListener('input', render);
+  render();
+</script>
+</body>
+</html>
