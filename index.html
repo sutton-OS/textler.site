@@ -41,6 +41,7 @@
     --ui-font: "SF Pro";
     --text-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
     --editor-font: "iA Writer Duo V";
+    --mono-font: "iA Writer Mono V", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
   * {
@@ -246,6 +247,20 @@
     min-height: 0;
   }
 
+  body.notes-mode {
+    --ui-font: var(--mono-font);
+    --text-font: var(--mono-font);
+    --editor-font: var(--mono-font);
+  }
+
+  body.notes-mode .app {
+    width: min(1400px, 98vw);
+  }
+
+  body.notes-mode .split {
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  }
+
   .pane {
     display: flex;
     flex-direction: column;
@@ -271,6 +286,24 @@
     border-right: 1px solid var(--border);
   }
 
+  .notes-pane {
+    display: none;
+    background: var(--panel-2);
+    border-right: 1px solid var(--border);
+  }
+
+  body.notes-mode .notes-pane {
+    display: flex;
+  }
+
+  body.notes-mode .preview-pane {
+    display: none;
+  }
+
+  body.notes-mode .editor-pane {
+    border-right: none;
+  }
+
   textarea {
     flex: 1;
     min-height: 0;
@@ -286,23 +319,33 @@
     tab-size: 2;
   }
 
+  body.notes-mode .editor-textarea {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  body.notes-mode .notes-textarea {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
   .preview-pane {
     background: var(--panel);
   }
 
-  body.focus .split {
+  body.focus:not(.notes-mode) .split {
     grid-template-columns: 1fr;
   }
 
-  body.focus .preview-pane {
+  body.focus:not(.notes-mode) .preview-pane {
     display: none;
   }
 
-  body.focus .editor-pane {
+  body.focus:not(.notes-mode) .editor-pane {
     border-right: none;
   }
 
-  body.focus .pane-title {
+  body.focus:not(.notes-mode) .pane-title {
     display: none;
   }
 
@@ -322,7 +365,7 @@
     transform: translateY(0);
   }
 
-  body.focus textarea {
+  body.focus:not(.notes-mode) textarea {
     align-self: center;
     width: min(860px, 100%);
     padding: calc(34px + 5.25em) 44px 90px;
@@ -480,6 +523,15 @@
       border-bottom: 1px solid var(--border);
     }
 
+    body.notes-mode .notes-pane {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    body.notes-mode .editor-pane {
+      border-bottom: none;
+    }
+
     .preview {
       padding: 24px;
     }
@@ -516,6 +568,14 @@
         <span class="sep"></span>
         <div class="group">
           <button
+            data-action="notes"
+            id="notes-toggle"
+            type="button"
+            title="Enter Notes Mode"
+            aria-label="Enter Notes Mode"
+            aria-pressed="false"
+          >Notes</button>
+          <button
             data-action="focus"
             id="focus-toggle"
             type="button"
@@ -547,9 +607,13 @@
     </header>
 
     <main class="split">
+      <section class="pane notes-pane">
+        <div class="pane-title">Notes</div>
+        <textarea id="notes" class="notes-textarea" spellcheck="true" wrap="soft" placeholder="Notes for this document..."></textarea>
+      </section>
       <section class="pane editor-pane">
         <div class="pane-title">Markdown</div>
-        <textarea id="editor" spellcheck="true" wrap="soft"></textarea>
+        <textarea id="editor" class="editor-textarea" spellcheck="true" wrap="soft"></textarea>
       </section>
 
       <section class="pane preview-pane">
@@ -579,12 +643,14 @@ function hello() {
 
 <script>
   const editor = document.getElementById('editor');
+  const notesEditor = document.getElementById('notes');
   const preview = document.getElementById('preview');
   const toolbar = document.querySelector('.toolbar');
   const copyButton = document.getElementById('copy-html');
   const exportPdfButton = document.getElementById('export-pdf');
   const themeToggleButton = document.getElementById('theme-toggle');
   const focusToggleButton = document.getElementById('focus-toggle');
+  const notesToggleButton = document.getElementById('notes-toggle');
 
   function escapeHTML(str) {
     return str
@@ -1442,12 +1508,76 @@ ${content}
     }
   }
 
+  function readJsonSetting(key, fallback) {
+    const raw = readSetting(key);
+    if (!raw) return fallback;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeJsonSetting(key, value) {
+    writeSetting(key, JSON.stringify(value));
+  }
+
+  function slugifyTitle(text) {
+    return String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 64);
+  }
+
+  function getDocumentKey(md) {
+    const match = String(md || '').match(/^\s*#\s+(.+)\s*$/m);
+    const title = match && match[1] ? match[1].trim() : 'untitled';
+    return slugifyTitle(title) || 'untitled';
+  }
+
+  const NOTES_STORAGE_KEY = 'texler_notes_by_doc';
+  let notesByDoc = readJsonSetting(NOTES_STORAGE_KEY, {});
+  let currentDocKey = null;
+  let notesModePrevFocus = null;
+
+  function persistNotesStore() {
+    writeJsonSetting(NOTES_STORAGE_KEY, notesByDoc);
+  }
+
+  function syncNotesForDocument(nextKey) {
+    if (!notesEditor) return;
+    const prevKey = currentDocKey;
+    if (prevKey && prevKey !== nextKey) {
+      const prevNotes = notesByDoc[prevKey];
+      if (prevNotes && !notesByDoc[nextKey]) {
+        notesByDoc[nextKey] = prevNotes;
+        delete notesByDoc[prevKey];
+        persistNotesStore();
+      }
+    }
+    currentDocKey = nextKey;
+    notesEditor.value = notesByDoc[currentDocKey] || '';
+  }
+
   function syncFocusToggle() {
     if (!focusToggleButton) return;
     const isFocus = document.body.classList.contains('focus');
+    const isNotes = document.body.classList.contains('notes-mode');
     focusToggleButton.setAttribute('aria-pressed', String(isFocus));
+    if (isNotes) {
+      focusToggleButton.disabled = true;
+      focusToggleButton.setAttribute('aria-disabled', 'true');
+      focusToggleButton.textContent = 'Focus';
+      focusToggleButton.title = 'Focus mode is locked in Notes Mode';
+      focusToggleButton.setAttribute('aria-label', 'Focus mode locked in Notes Mode');
+      return;
+    }
+    focusToggleButton.disabled = false;
+    focusToggleButton.removeAttribute('aria-disabled');
     focusToggleButton.textContent = isFocus ? 'Exit Focus' : 'Focus';
     focusToggleButton.title = isFocus ? 'Exit focus mode (Esc)' : 'Enter focus mode (⌘⇧F / Ctrl⇧F)';
+    focusToggleButton.setAttribute('aria-label', focusToggleButton.title);
   }
 
   function setFocusMode(enabled) {
@@ -1458,7 +1588,40 @@ ${content}
   }
 
   function toggleFocus() {
+    if (document.body.classList.contains('notes-mode')) return;
     setFocusMode(!document.body.classList.contains('focus'));
+  }
+
+  function syncNotesToggle() {
+    if (!notesToggleButton) return;
+    const isNotes = document.body.classList.contains('notes-mode');
+    notesToggleButton.setAttribute('aria-pressed', String(isNotes));
+    notesToggleButton.textContent = isNotes ? 'Exit Notes' : 'Notes';
+    notesToggleButton.title = isNotes ? 'Exit Notes Mode (⌘⇧N / Ctrl⇧N)' : 'Enter Notes Mode (⌘⇧N / Ctrl⇧N)';
+    notesToggleButton.setAttribute('aria-label', notesToggleButton.title);
+  }
+
+  function setNotesMode(enabled) {
+    const body = document.body;
+    const isEnabled = body.classList.contains('notes-mode');
+    if (enabled === isEnabled) return;
+    if (enabled) {
+      notesModePrevFocus = body.classList.contains('focus');
+      body.classList.add('notes-mode');
+      setFocusMode(true);
+    } else {
+      body.classList.remove('notes-mode');
+      if (notesModePrevFocus === false) {
+        setFocusMode(false);
+      }
+      notesModePrevFocus = null;
+    }
+    syncNotesToggle();
+    syncFocusToggle();
+  }
+
+  function toggleNotesMode() {
+    setNotesMode(!document.body.classList.contains('notes-mode'));
   }
 
   toolbar.addEventListener('click', (event) => {
@@ -1503,30 +1666,97 @@ ${content}
     if (action === 'copy') return copyHtml();
     if (action === 'pdf') return exportPdf().catch((err) => console.error(err));
     if (action === 'theme') return toggleTheme();
+    if (action === 'notes') return toggleNotesMode();
     if (action === 'focus') return toggleFocus();
   });
 
   document.addEventListener('keydown', (event) => {
     const key = String(event.key || '').toLowerCase();
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'n') {
+      event.preventDefault();
+      toggleNotesMode();
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'f') {
       event.preventDefault();
       toggleFocus();
       return;
     }
-    if (key === 'escape' && document.body.classList.contains('focus')) {
+    if (key === 'escape' && document.body.classList.contains('focus') && !document.body.classList.contains('notes-mode')) {
       event.preventDefault();
       setFocusMode(false);
     }
   });
 
+  function runNotesModeTests() {
+    const results = [];
+    const assert = (condition, message) => {
+      const ok = Boolean(condition);
+      results.push({ ok, message });
+      if (!ok) console.error('Notes Mode test failed:', message);
+    };
+
+    const wasNotes = document.body.classList.contains('notes-mode');
+    if (!wasNotes) setNotesMode(true);
+
+    const previewPane = document.querySelector('.preview-pane');
+    const previewHidden = !previewPane || getComputedStyle(previewPane).display === 'none';
+    assert(previewHidden, 'Preview hidden in Notes Mode');
+    assert(document.body.classList.contains('focus'), 'Focus enabled in Notes Mode');
+    assert(document.body.classList.contains('notes-mode'), 'Notes Mode class applied');
+
+    const notesPane = document.querySelector('.notes-pane');
+    const editorPane = document.querySelector('.editor-pane');
+    if (notesPane && editorPane) {
+      const notesRect = notesPane.getBoundingClientRect();
+      const editorRect = editorPane.getBoundingClientRect();
+      if (window.innerWidth > 900) {
+        const ratio = notesRect.width / (notesRect.width + editorRect.width);
+        assert(ratio > 0.3 && ratio < 0.4, 'Notes pane is ~33% width');
+      } else {
+        assert(notesRect.top < editorRect.top, 'Notes pane stacks above editor on small screens');
+      }
+    } else {
+      assert(false, 'Notes and editor panes exist');
+    }
+
+    const editorFont = getComputedStyle(editor).fontFamily || '';
+    assert(editorFont.includes('iA Writer Mono V'), 'Notes Mode uses iA Writer Mono V');
+
+    if (!wasNotes) setNotesMode(false);
+
+    const failed = results.filter(r => !r.ok);
+    if (!failed.length) console.log('Notes Mode tests passed');
+    return results;
+  }
+
   editor.value = document.getElementById('starter').textContent.trim();
-  editor.addEventListener('input', render);
+  currentDocKey = getDocumentKey(editor.value);
+  syncNotesForDocument(currentDocKey);
+  editor.addEventListener('input', () => {
+    render();
+    const nextKey = getDocumentKey(editor.value);
+    if (nextKey !== currentDocKey) {
+      syncNotesForDocument(nextKey);
+    }
+  });
+  if (notesEditor) {
+    notesEditor.addEventListener('input', () => {
+      if (!currentDocKey) currentDocKey = getDocumentKey(editor.value);
+      notesByDoc[currentDocKey] = notesEditor.value;
+      persistNotesStore();
+    });
+  }
   render();
   syncThemeToggle();
 
   const focusSaved = readSetting('texler_focus');
   if (focusSaved === '1') setFocusMode(true);
   syncFocusToggle();
+  syncNotesToggle();
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('test')) runNotesModeTests();
 </script>
 </body>
 </html>
