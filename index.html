@@ -115,7 +115,6 @@
     background: var(--panel);
     border-bottom: 1px solid var(--border);
     position: relative;
-    padding-right: 52px;
     transition: opacity 180ms ease, transform 220ms ease;
   }
 
@@ -129,6 +128,13 @@
     width: 1px;
     height: 18px;
     background: var(--border);
+  }
+
+  .toolbar-right {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 
   .toolbar button {
@@ -170,9 +176,7 @@
   }
 
   .theme-toggle {
-    position: absolute;
-    top: 10px;
-    right: 12px;
+    position: relative;
     width: 32px;
     height: 32px;
     border-radius: 999px;
@@ -198,27 +202,30 @@
     width: 18px;
     height: 18px;
     position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   body.light .theme-toggle .icon-sun {
     opacity: 1;
-    transform: rotate(0deg) scale(1);
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
   }
 
   body.light .theme-toggle .icon-moon {
     opacity: 0;
-    transform: rotate(-70deg) scale(0.7);
+    transform: translate(-50%, -50%) rotate(-70deg) scale(0.7);
   }
 
   body.dark .theme-toggle .icon-sun {
     opacity: 0;
-    transform: rotate(70deg) scale(0.7);
+    transform: translate(-50%, -50%) rotate(70deg) scale(0.7);
   }
 
   body.dark .theme-toggle .icon-moon {
     opacity: 1;
-    transform: rotate(0deg) scale(1);
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
   }
 
   @keyframes theme-pop {
@@ -483,15 +490,15 @@
   <div class="app" role="application">
     <header class="toolbar">
       <div class="group">
-        <button data-action="bold" title="Bold"><strong>B</strong></button>
-        <button data-action="italic" title="Italic"><em>I</em></button>
-        <button data-action="link" title="Link">Link</button>
-      </div>
-      <span class="sep"></span>
-      <div class="group">
         <button data-action="h1" title="Heading 1">H1</button>
         <button data-action="h2" title="Heading 2">H2</button>
         <button data-action="h3" title="Heading 3">H3</button>
+      </div>
+      <span class="sep"></span>
+      <div class="group">
+        <button data-action="bold" title="Bold"><strong>B</strong></button>
+        <button data-action="italic" title="Italic"><em>I</em></button>
+        <button data-action="link" title="Link">Link</button>
       </div>
       <span class="sep"></span>
       <div class="group">
@@ -501,39 +508,42 @@
         <button data-action="code" title="Code">{}</button>
       </div>
       <span class="sep"></span>
-      <div class="group">
-        <button data-action="copy" id="copy-html" title="Copy HTML">Copy HTML</button>
-        <button data-action="pdf" id="export-pdf" title="Export PDF">Export PDF</button>
-      </div>
-      <span class="sep"></span>
-      <div class="group">
+      <div class="toolbar-right">
+        <div class="group">
+          <button data-action="copy" id="copy-html" title="Copy HTML">Copy HTML</button>
+          <button data-action="pdf" id="export-pdf" title="Export PDF">Export PDF</button>
+        </div>
+        <span class="sep"></span>
+        <div class="group">
+          <button
+            data-action="focus"
+            id="focus-toggle"
+            type="button"
+            title="Enter focus mode"
+            aria-label="Enter focus mode"
+            aria-pressed="false"
+          >Focus</button>
+        </div>
+        <span class="sep"></span>
         <button
-          data-action="focus"
-          id="focus-toggle"
+          data-action="theme"
+          id="theme-toggle"
+          class="theme-toggle"
           type="button"
-          title="Enter focus mode"
-          aria-label="Enter focus mode"
+          title="Toggle theme"
+          aria-label="Toggle theme"
           aria-pressed="false"
-        >Focus</button>
+        >
+          <span class="sr-only">Toggle theme</span>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 4.25v2.2M12 17.55v2.2M5.1 7.1l1.55 1.55M17.35 15.35l1.55 1.55M4.25 12h2.2M17.55 12h2.2M5.1 16.9l1.55-1.55M17.35 8.65l1.55-1.55" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 16.2a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Z" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 14.2A7.8 7.8 0 0 1 9.8 4a6.4 6.4 0 1 0 10.2 10.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
-      <button
-        data-action="theme"
-        id="theme-toggle"
-        class="theme-toggle"
-        type="button"
-        title="Toggle theme"
-        aria-label="Toggle theme"
-        aria-pressed="false"
-      >
-        <span class="sr-only">Toggle theme</span>
-        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 4.25v2.2M12 17.55v2.2M5.1 7.1l1.55 1.55M17.35 15.35l1.55 1.55M4.25 12h2.2M17.55 12h2.2M5.1 16.9l1.55-1.55M17.35 8.65l1.55-1.55" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M12 16.2a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Z" stroke="currentColor" stroke-width="1.8"/>
-        </svg>
-        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M20 14.2A7.8 7.8 0 0 1 9.8 4a6.4 6.4 0 1 0 10.2 10.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        </svg>
-      </button>
     </header>
 
     <main class="split">
