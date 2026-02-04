@@ -5,10 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markdown TextEdit</title>
 <style id="app-style">
+  @font-face {
+    font-family: "iA Writer Duo V";
+    src: url("iAWriterDuoV.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "iA Writer Duo V";
+    src: url("iAWriterDuoV-Italic.ttf") format("truetype");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "IBM Plex Sans";
+    src: url("IBMPlexSans-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "IBM Plex Sans";
+    src: url("IBMPlexSans-Italic.ttf") format("truetype");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+  }
+
   :root {
-    --ui-font: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
-    --text-font: "iA Writer Quattro", "Iowan Old Style", "Baskerville", "Palatino", "Times New Roman", serif;
-    --editor-font: "iA Writer Mono", "Menlo", "SF Mono", "Monaco", monospace;
+    --ui-font: "SF Pro";
+    --text-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --editor-font: "iA Writer Duo V";
   }
 
   * {
@@ -71,6 +103,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .toolbar {
@@ -81,6 +114,9 @@
     padding: 10px 12px;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
+    position: relative;
+    padding-right: 52px;
+    transition: opacity 180ms ease, transform 220ms ease;
   }
 
   .toolbar .group {
@@ -114,6 +150,86 @@
 
   .toolbar button:active {
     transform: translateY(1px);
+  }
+
+  .toolbar button:not(.theme-toggle)[aria-pressed="true"] {
+    background: var(--panel);
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .theme-toggle {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .theme-toggle:hover {
+    background: var(--panel);
+  }
+
+  .theme-toggle:active {
+    transform: translateY(1px);
+  }
+
+  .theme-toggle svg {
+    width: 18px;
+    height: 18px;
+    position: absolute;
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  body.light .theme-toggle .icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  body.light .theme-toggle .icon-moon {
+    opacity: 0;
+    transform: rotate(-70deg) scale(0.7);
+  }
+
+  body.dark .theme-toggle .icon-sun {
+    opacity: 0;
+    transform: rotate(70deg) scale(0.7);
+  }
+
+  body.dark .theme-toggle .icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  @keyframes theme-pop {
+    0% { transform: scale(1); }
+    35% { transform: scale(0.92); }
+    70% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .theme-toggle.is-animating {
+    animation: theme-pop 240ms ease;
   }
 
   .split {
@@ -167,11 +283,57 @@
     background: var(--panel);
   }
 
+  body.focus .split {
+    grid-template-columns: 1fr;
+  }
+
+  body.focus .preview-pane {
+    display: none;
+  }
+
+  body.focus .editor-pane {
+    border-right: none;
+  }
+
+  body.focus .pane-title {
+    display: none;
+  }
+
+  body.focus .toolbar {
+    opacity: 0;
+    transform: translateY(-8px);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+
+  body.focus .toolbar:hover,
+  body.focus .toolbar:focus-within {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  body.focus textarea {
+    align-self: center;
+    width: min(860px, 100%);
+    padding: calc(34px + 5.25em) 44px 90px;
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
   .preview {
     flex: 1;
     min-height: 0;
     overflow: auto;
     padding: 28px 36px 60px;
+  }
+
+  .preview .doc,
+  .export .page {
+    max-width: 68ch;
+    margin: 0 auto;
   }
 
   .preview, .export .page {
@@ -190,18 +352,26 @@
     line-height: 1.2;
     margin: 0.6em 0 0.4em;
     letter-spacing: -0.02em;
+    font-weight: 600;
   }
 
   .preview h2, .export .page h2 {
     font-size: 1.7rem;
     line-height: 1.3;
     margin: 1.2em 0 0.5em;
+    font-weight: 600;
   }
 
   .preview h3, .export .page h3 {
     font-size: 1.3rem;
     line-height: 1.4;
     margin: 1em 0 0.4em;
+    font-weight: 600;
+  }
+
+  .preview h1, .preview h2,
+  .export .page h1, .export .page h2 {
+    text-align: center;
   }
 
   .preview ul, .preview ol, .export .page ul, .export .page ol {
@@ -220,10 +390,35 @@
   }
 
   .preview blockquote, .export .page blockquote {
-    margin: 0 0 1.4em;
-    padding: 0.2em 0 0.2em 1em;
-    border-left: 3px solid var(--accent);
-    color: var(--muted);
+    margin: 2em 0;
+    padding: 0;
+    border-left: none;
+    text-align: center;
+    font-style: italic;
+    color: var(--text);
+  }
+
+  .preview blockquote p, .export .page blockquote p {
+    margin: 0 0 1em;
+  }
+
+  .preview blockquote p:last-child, .export .page blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  .preview hr, .export .page hr {
+    border: 0;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.25;
+    margin: 2.5em 0;
+  }
+
+  @supports (background: color-mix(in srgb, black 50%, transparent)) {
+    .preview hr, .export .page hr {
+      background: color-mix(in srgb, var(--text) 70%, transparent);
+      opacity: 1;
+    }
   }
 
   .preview code, .export .page code {
@@ -236,6 +431,7 @@
   }
 
   .preview pre, .export .page pre {
+    font-family: var(--editor-font);
     background: var(--code-bg);
     border: 1px solid var(--code-border);
     padding: 16px;
@@ -261,11 +457,6 @@
 
   .export {
     padding: 56px 24px 80px;
-  }
-
-  .export .page {
-    max-width: 720px;
-    margin: 0 auto;
   }
 
   @media (max-width: 900px) {
@@ -304,16 +495,45 @@
       </div>
       <span class="sep"></span>
       <div class="group">
-        <button data-action="ul" title="Bulleted List">Bullets</button>
-        <button data-action="ol" title="Numbered List">Numbers</button>
-        <button data-action="quote" title="Quote">Quote</button>
-        <button data-action="code" title="Code">Code</button>
+        <button data-action="ul" title="Bulleted List">⋮</button>
+        <button data-action="ol" title="Numbered List">1.</button>
+        <button data-action="quote" title="Quote">“</button>
+        <button data-action="code" title="Code">{}</button>
       </div>
       <span class="sep"></span>
       <div class="group">
         <button data-action="copy" id="copy-html" title="Copy HTML">Copy HTML</button>
-        <button data-action="theme" id="theme-toggle" title="Toggle Light/Dark">Light/Dark</button>
+        <button data-action="pdf" id="export-pdf" title="Export PDF">Export PDF</button>
       </div>
+      <span class="sep"></span>
+      <div class="group">
+        <button
+          data-action="focus"
+          id="focus-toggle"
+          type="button"
+          title="Enter focus mode"
+          aria-label="Enter focus mode"
+          aria-pressed="false"
+        >Focus</button>
+      </div>
+      <button
+        data-action="theme"
+        id="theme-toggle"
+        class="theme-toggle"
+        type="button"
+        title="Toggle theme"
+        aria-label="Toggle theme"
+        aria-pressed="false"
+      >
+        <span class="sr-only">Toggle theme</span>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4.25v2.2M12 17.55v2.2M5.1 7.1l1.55 1.55M17.35 15.35l1.55 1.55M4.25 12h2.2M17.55 12h2.2M5.1 16.9l1.55-1.55M17.35 8.65l1.55-1.55" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 16.2a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Z" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20 14.2A7.8 7.8 0 0 1 9.8 4a6.4 6.4 0 1 0 10.2 10.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </header>
 
     <main class="split">
@@ -352,6 +572,9 @@ function hello() {
   const preview = document.getElementById('preview');
   const toolbar = document.querySelector('.toolbar');
   const copyButton = document.getElementById('copy-html');
+  const exportPdfButton = document.getElementById('export-pdf');
+  const themeToggleButton = document.getElementById('theme-toggle');
+  const focusToggleButton = document.getElementById('focus-toggle');
 
   function escapeHTML(str) {
     return str
@@ -507,6 +730,13 @@ function hello() {
         continue;
       }
 
+      if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        flushParagraph();
+        html += '<hr />';
+        i++;
+        continue;
+      }
+
       paragraph.push(line.trim());
       i++;
     }
@@ -518,10 +748,10 @@ function hello() {
   function render() {
     const raw = editor.value;
     if (raw.trim().length === 0) {
-      preview.innerHTML = '<p class="placeholder">Start writing...</p>';
+      preview.innerHTML = '<article class="doc"><p class="placeholder">Start writing...</p></article>';
       return;
     }
-    preview.innerHTML = renderMarkdown(raw);
+    preview.innerHTML = `<article class="doc">${renderMarkdown(raw)}</article>`;
   }
 
   function wrapSelection(before, after, placeholder) {
@@ -644,10 +874,581 @@ ${content}
     }
   }
 
+  function sanitizeFilename(name) {
+    const cleaned = String(name || '')
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+    return cleaned || 'Document';
+  }
+
+  function buildPdfFilename(md) {
+    const match = String(md || '').match(/^\s*#\s+(.+)\s*$/m);
+    if (match && match[1]) return sanitizeFilename(match[1]) + '.pdf';
+    return 'Document.pdf';
+  }
+
+  function downloadBytes(bytes, filename, mimeType) {
+    const blob = new Blob([bytes], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function parseMarkdownBlocks(md) {
+    const html = String(md || '').trim().length ? renderMarkdown(md) : '';
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    const nodes = Array.from(doc.body.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE);
+
+    function collectInlineRuns(node, style, out) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.nodeValue || '';
+        if (text) out.push({ text, style });
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const tag = node.tagName.toLowerCase();
+      const next = { ...style };
+      if (tag === 'strong') next.bold = true;
+      if (tag === 'em') next.italic = true;
+      if (tag === 'code') next.code = true;
+      if (tag === 'a') next.link = true;
+      for (const child of Array.from(node.childNodes)) collectInlineRuns(child, next, out);
+    }
+
+    function inlineRunsFrom(el) {
+      const runs = [];
+      for (const child of Array.from(el.childNodes)) collectInlineRuns(child, { bold: false, italic: false, code: false, link: false }, runs);
+      return runs;
+    }
+
+    function blocksFromContainer(containerEl) {
+      const out = [];
+      const kids = Array.from(containerEl.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE);
+      for (const el of kids) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+          out.push({ type: 'heading', level: Number(tag[1]), runs: inlineRunsFrom(el) });
+          continue;
+        }
+        if (tag === 'p') {
+          out.push({ type: 'paragraph', runs: inlineRunsFrom(el) });
+          continue;
+        }
+        if (tag === 'ul' || tag === 'ol') {
+          const ordered = tag === 'ol';
+          const items = Array.from(el.children)
+            .filter(child => child.tagName && child.tagName.toLowerCase() === 'li')
+            .map(li => inlineRunsFrom(li));
+          out.push({ type: 'list', ordered, items });
+          continue;
+        }
+        if (tag === 'blockquote') {
+          out.push({ type: 'blockquote', blocks: blocksFromContainer(el) });
+          continue;
+        }
+        if (tag === 'pre') {
+          const code = el.textContent || '';
+          out.push({ type: 'code', text: code.replace(/\n$/, '') });
+          continue;
+        }
+      }
+      return out;
+    }
+
+    return blocksFromContainer(doc.body);
+  }
+
+  function exportMarkdownToPdfBytes(md) {
+    const PAGE = { width: 612, height: 792, margin: 54 }; // Letter, 8.5x11in
+    const baseFontSize = 13.5;
+    const measurer = (() => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const ptToPx = (pt) => pt * (96 / 72);
+      const fontCss = (style, sizePt) => {
+        if (style && style.code) return `${ptToPx(sizePt)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
+        const parts = [];
+        if (style && style.italic) parts.push('italic');
+        if (style && style.bold) parts.push('bold');
+        parts.push(`${ptToPx(sizePt)}px`);
+        parts.push('Helvetica, Arial, sans-serif');
+        return parts.join(' ');
+      };
+      const measurePx = (text, style, sizePt) => {
+        ctx.font = fontCss(style, sizePt);
+        return ctx.measureText(text).width;
+      };
+      return { ptToPx, measurePx };
+    })();
+
+    const CP1252 = new Map([
+      [0x20AC, 0x80], [0x201A, 0x82], [0x0192, 0x83], [0x201E, 0x84], [0x2026, 0x85],
+      [0x2020, 0x86], [0x2021, 0x87], [0x02C6, 0x88], [0x2030, 0x89], [0x0160, 0x8A],
+      [0x2039, 0x8B], [0x0152, 0x8C], [0x017D, 0x8E], [0x2018, 0x91], [0x2019, 0x92],
+      [0x201C, 0x93], [0x201D, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97],
+      [0x02DC, 0x98], [0x2122, 0x99], [0x0161, 0x9A], [0x203A, 0x9B], [0x0153, 0x9C],
+      [0x017E, 0x9E], [0x0178, 0x9F],
+    ]);
+
+    const toWinAnsiBytes = (text) => {
+      const bytes = [];
+      for (const ch of String(text || '')) {
+        const code = ch.codePointAt(0);
+        if (code === 0x09) { bytes.push(0x20); continue; }
+        if (code === 0x0D) continue;
+        if (code === 0x0A) { bytes.push(0x20); continue; }
+        if (code >= 0x20 && code <= 0x7E) { bytes.push(code); continue; }
+        if (code >= 0xA0 && code <= 0xFF) { bytes.push(code); continue; }
+        if (CP1252.has(code)) { bytes.push(CP1252.get(code)); continue; }
+        bytes.push(0x3F);
+      }
+      return bytes;
+    };
+
+    const pdfHexString = (text) => {
+      const bytes = toWinAnsiBytes(text);
+      let hex = '';
+      for (const b of bytes) hex += b.toString(16).padStart(2, '0');
+      return `<${hex}>`;
+    };
+
+    const fontKeyForStyle = (style) => {
+      if (style && style.code) return 'F5';
+      const bold = style && style.bold;
+      const italic = style && style.italic;
+      if (bold && italic) return 'F4';
+      if (bold) return 'F2';
+      if (italic) return 'F3';
+      return 'F1';
+    };
+
+    const normalizeRuns = (runs) => {
+      const out = [];
+      for (const r of runs || []) {
+        const style = r.style || { bold: false, italic: false, code: false, link: false };
+        const text = style.code ? String(r.text || '') : String(r.text || '').replace(/\s+/g, ' ');
+        if (!text) continue;
+        const prev = out[out.length - 1];
+        if (prev && prev.style.bold === style.bold && prev.style.italic === style.italic && prev.style.code === style.code && prev.style.link === style.link) {
+          prev.text += text;
+        } else {
+          out.push({ text, style });
+        }
+      }
+      return out;
+    };
+
+    const wrapRuns = (runs, sizePt, maxWidthPt) => {
+      const maxWidthPx = measurer.ptToPx(maxWidthPt);
+      const tokens = [];
+      for (const run of normalizeRuns(runs)) {
+        const parts = run.style.code ? [run.text] : run.text.split(/(\s+)/);
+        for (const part of parts) {
+          if (!part) continue;
+          if (!run.style.code && /^\s+$/.test(part)) tokens.push({ text: ' ', style: run.style });
+          else tokens.push({ text: part, style: run.style });
+        }
+      }
+
+      const lines = [];
+      let line = [];
+      let lineWidthPx = 0;
+
+      const pushLine = () => {
+        if (line.length) lines.push(line);
+        line = [];
+        lineWidthPx = 0;
+      };
+
+      const appendToken = (tok) => {
+        const w = measurer.measurePx(tok.text, tok.style, sizePt);
+        line.push(tok);
+        lineWidthPx += w;
+      };
+
+      const splitLongToken = (tok) => {
+        const chars = Array.from(tok.text);
+        let idx = 0;
+        while (idx < chars.length) {
+          if (!line.length) {
+            let low = 1;
+            let high = chars.length - idx;
+            while (low < high) {
+              const mid = Math.ceil((low + high) / 2);
+              const s = chars.slice(idx, idx + mid).join('');
+              const w = measurer.measurePx(s, tok.style, sizePt);
+              if (w <= maxWidthPx) low = mid;
+              else high = mid - 1;
+            }
+            const take = Math.max(1, low);
+            appendToken({ text: chars.slice(idx, idx + take).join(''), style: tok.style });
+            idx += take;
+            pushLine();
+            continue;
+          }
+          pushLine();
+        }
+      };
+
+      for (const tok of tokens) {
+        if (tok.text === ' ' && !line.length) continue;
+        const w = measurer.measurePx(tok.text, tok.style, sizePt);
+        if (!line.length) {
+          if (w > maxWidthPx && tok.text.trim()) {
+            splitLongToken(tok);
+            continue;
+          }
+          appendToken(tok);
+          continue;
+        }
+        if (lineWidthPx + w <= maxWidthPx) {
+          appendToken(tok);
+          continue;
+        }
+        pushLine();
+        if (tok.text === ' ') continue;
+        if (w > maxWidthPx && tok.text.trim()) {
+          splitLongToken(tok);
+          continue;
+        }
+        appendToken(tok);
+      }
+      pushLine();
+
+      return lines.map(parts => {
+        const merged = [];
+        for (const p of parts) {
+          if (!p.text) continue;
+          const prev = merged[merged.length - 1];
+          if (prev && prev.style.bold === p.style.bold && prev.style.italic === p.style.italic && prev.style.code === p.style.code && prev.style.link === p.style.link) {
+            prev.text += p.text;
+          } else {
+            merged.push({ text: p.text, style: p.style });
+          }
+        }
+        return merged;
+      });
+    };
+
+    const wrapTextPreserve = (text, style, sizePt, maxWidthPt) => {
+      const maxWidthPx = measurer.ptToPx(maxWidthPt);
+      const raw = String(text || '');
+      const chars = Array.from(raw.length ? raw : ' ');
+      const out = [];
+      let idx = 0;
+      while (idx < chars.length) {
+        let low = 1;
+        let high = chars.length - idx;
+        while (low < high) {
+          const mid = Math.ceil((low + high) / 2);
+          const s = chars.slice(idx, idx + mid).join('');
+          const w = measurer.measurePx(s, style, sizePt);
+          if (w <= maxWidthPx) low = mid;
+          else high = mid - 1;
+        }
+        const take = Math.max(1, low);
+        out.push(chars.slice(idx, idx + take).join(''));
+        idx += take;
+      }
+      return out;
+    };
+
+    const pages = [];
+    let ops = [];
+    const pushPage = () => {
+      pages.push(ops.join('\n'));
+      ops = [];
+    };
+
+    let yTop = PAGE.height - PAGE.margin;
+    let yCursor = yTop;
+    const bottom = PAGE.margin;
+    const left = PAGE.margin;
+    const right = PAGE.width - PAGE.margin;
+    const defaultWidth = right - left;
+
+    const ensureLineSpace = (lineHeight) => {
+      if (yCursor - lineHeight < bottom) {
+        pushPage();
+        yCursor = yTop;
+      }
+    };
+
+    const drawTextLine = (segments, x, sizePt, color) => {
+      const yText = yCursor - sizePt;
+      const [r, g, b] = color;
+      ops.push(`${r} ${g} ${b} rg`);
+      ops.push('BT');
+      ops.push(`1 0 0 1 ${x.toFixed(2)} ${yText.toFixed(2)} Tm`);
+      let currentFont = null;
+      let currentSize = null;
+      for (const seg of segments) {
+        const text = seg.text;
+        if (!text) continue;
+        const font = fontKeyForStyle(seg.style);
+        const size = sizePt;
+        if (font !== currentFont || size !== currentSize) {
+          ops.push(`/${font} ${size.toFixed(2)} Tf`);
+          currentFont = font;
+          currentSize = size;
+        }
+        ops.push(`${pdfHexString(text)} Tj`);
+      }
+      ops.push('ET');
+    };
+
+    const renderParagraphLike = (runs, opts) => {
+      const sizePt = opts.sizePt;
+      const lineHeight = sizePt * opts.lineHeight;
+      const x = opts.x;
+      const width = opts.width;
+      const color = opts.color;
+      const lines = wrapRuns(runs, sizePt, width);
+      for (const line of lines) {
+        ensureLineSpace(lineHeight);
+        drawTextLine(line, x, sizePt, color);
+        yCursor -= lineHeight;
+      }
+      yCursor -= sizePt * opts.afterSpacing;
+    };
+
+    const renderBlocks = (blocks, ctx) => {
+      for (const block of blocks) {
+        if (block.type === 'heading') {
+          const sizePt = block.level === 1 ? 24 : block.level === 2 ? 18 : 15;
+          yCursor -= sizePt * 0.25;
+          renderParagraphLike(block.runs, {
+            sizePt,
+            lineHeight: 1.25,
+            x: ctx.x,
+            width: ctx.width,
+            color: ctx.color,
+            afterSpacing: 0.65,
+          });
+          continue;
+        }
+        if (block.type === 'paragraph') {
+          renderParagraphLike(block.runs, {
+            sizePt: baseFontSize,
+            lineHeight: 1.7,
+            x: ctx.x,
+            width: ctx.width,
+            color: ctx.color,
+            afterSpacing: 0.75,
+          });
+          continue;
+        }
+        if (block.type === 'list') {
+          let index = 1;
+          for (const itemRuns of block.items) {
+            const prefix = block.ordered ? `${index++}. ` : '• ';
+            const runs = [{ text: prefix, style: { bold: false, italic: false, code: false, link: false } }, ...(itemRuns || [])];
+            renderParagraphLike(runs, {
+              sizePt: baseFontSize,
+              lineHeight: 1.7,
+              x: ctx.x + 18,
+              width: ctx.width - 18,
+              color: ctx.color,
+              afterSpacing: 0.35,
+            });
+          }
+          yCursor -= baseFontSize * 0.3;
+          continue;
+        }
+        if (block.type === 'code') {
+          const codeLines = String(block.text || '').replace(/\r\n?/g, '\n').split('\n');
+          const sizePt = 11.5;
+          const lineHeight = sizePt * 1.5;
+          const codeStyle = { bold: false, italic: false, code: true, link: false };
+          for (const rawLine of codeLines) {
+            const chunks = wrapTextPreserve(rawLine, codeStyle, sizePt, ctx.width);
+            for (const chunk of chunks) {
+              ensureLineSpace(lineHeight);
+              drawTextLine([{ text: chunk, style: codeStyle }], ctx.x, sizePt, ctx.color);
+              yCursor -= lineHeight;
+            }
+          }
+          yCursor -= sizePt * 0.9;
+          continue;
+        }
+        if (block.type === 'blockquote') {
+          const quoteColor = [0.35, 0.32, 0.28];
+          yCursor -= baseFontSize * 0.2;
+          renderBlocks(block.blocks || [], { x: ctx.x + 18, width: ctx.width - 18, color: quoteColor });
+          yCursor -= baseFontSize * 0.2;
+          continue;
+        }
+      }
+    };
+
+    const blocks = parseMarkdownBlocks(md);
+    renderBlocks(blocks, { x: left, width: defaultWidth, color: [0, 0, 0] });
+    pushPage();
+
+    const encoder = new TextEncoder();
+    const objects = [null];
+    const addObject = (content) => {
+      objects.push(content);
+      return objects.length - 1;
+    };
+    const setObject = (id, content) => { objects[id] = content; };
+    const createStreamObject = (data) => {
+      const len = encoder.encode(data).length;
+      return `<< /Length ${len} >>\nstream\n${data}\nendstream`;
+    };
+
+    const pagesId = addObject('');
+    const catalogId = addObject(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+    const now = new Date();
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const creation = `D:${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+    const infoId = addObject(`<< /Producer ${pdfHexString('Texler')} /CreationDate ${pdfHexString(creation)} >>`);
+
+    const fontResources = `<< /Font <<\n` +
+      `/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\n` +
+      `/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\n` +
+      `/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>\n` +
+      `/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >>\n` +
+      `/F5 << /Type /Font /Subtype /Type1 /BaseFont /Courier >>\n` +
+      `>> >>`;
+
+    const kids = [];
+    for (const pageOps of pages) {
+      const contentId = addObject(createStreamObject(pageOps));
+      const pageId = addObject(
+        `<< /Type /Page /Parent ${pagesId} 0 R ` +
+        `/MediaBox [0 0 ${PAGE.width} ${PAGE.height}] ` +
+        `/Resources ${fontResources} ` +
+        `/Contents ${contentId} 0 R >>`
+      );
+      kids.push(`${pageId} 0 R`);
+    }
+    setObject(pagesId, `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>`);
+
+    const chunks = [];
+    const pushStr = (s) => chunks.push(encoder.encode(s));
+    chunks.push(encoder.encode('%PDF-1.4\n'));
+    chunks.push(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+
+    const offsets = [0];
+    let offset = chunks[0].length + chunks[1].length;
+    for (let id = 1; id < objects.length; id++) {
+      offsets[id] = offset;
+      const objStr = `${id} 0 obj\n${objects[id]}\nendobj\n`;
+      const buf = encoder.encode(objStr);
+      chunks.push(buf);
+      offset += buf.length;
+    }
+
+    const xrefStart = offset;
+    let xref = `xref\n0 ${objects.length}\n`;
+    xref += `0000000000 65535 f \n`;
+    for (let id = 1; id < objects.length; id++) {
+      const off = String(offsets[id]).padStart(10, '0');
+      xref += `${off} 00000 n \n`;
+    }
+    pushStr(xref);
+
+    const trailer =
+      `trailer\n<< /Size ${objects.length} /Root ${catalogId} 0 R /Info ${infoId} 0 R >>\n` +
+      `startxref\n${xrefStart}\n%%EOF\n`;
+    pushStr(trailer);
+
+    const total = chunks.reduce((sum, c) => sum + c.length, 0);
+    const out = new Uint8Array(total);
+    let pos = 0;
+    for (const c of chunks) {
+      out.set(c, pos);
+      pos += c.length;
+    }
+    return out;
+  }
+
+  async function exportPdf() {
+    const original = exportPdfButton ? exportPdfButton.textContent : 'Export PDF';
+    if (exportPdfButton) {
+      exportPdfButton.textContent = 'Exporting…';
+      exportPdfButton.disabled = true;
+    }
+
+    try {
+      const md = editor.value || '';
+      const bytes = exportMarkdownToPdfBytes(md);
+      downloadBytes(bytes, buildPdfFilename(md), 'application/pdf');
+    } finally {
+      if (exportPdfButton) {
+        exportPdfButton.textContent = original;
+        exportPdfButton.disabled = false;
+      }
+    }
+  }
+
   function toggleTheme() {
     const body = document.body;
     body.classList.toggle('dark');
     body.classList.toggle('light');
+    animateThemeButton();
+    syncThemeToggle();
+  }
+
+  function animateThemeButton() {
+    if (!themeToggleButton) return;
+    themeToggleButton.classList.remove('is-animating');
+    void themeToggleButton.offsetWidth; // restart animation
+    themeToggleButton.classList.add('is-animating');
+    themeToggleButton.addEventListener('animationend', () => {
+      themeToggleButton.classList.remove('is-animating');
+    }, { once: true });
+  }
+
+  function syncThemeToggle() {
+    if (!themeToggleButton) return;
+    const isDark = document.body.classList.contains('dark');
+    themeToggleButton.setAttribute('aria-pressed', String(isDark));
+    themeToggleButton.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    themeToggleButton.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+
+  function readSetting(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  function writeSetting(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  }
+
+  function syncFocusToggle() {
+    if (!focusToggleButton) return;
+    const isFocus = document.body.classList.contains('focus');
+    focusToggleButton.setAttribute('aria-pressed', String(isFocus));
+    focusToggleButton.textContent = isFocus ? 'Exit Focus' : 'Focus';
+    focusToggleButton.title = isFocus ? 'Exit focus mode (Esc)' : 'Enter focus mode (⌘⇧F / Ctrl⇧F)';
+  }
+
+  function setFocusMode(enabled) {
+    document.body.classList.toggle('focus', Boolean(enabled));
+    writeSetting('texler_focus', enabled ? '1' : '0');
+    syncFocusToggle();
+    if (enabled) editor.focus();
+  }
+
+  function toggleFocus() {
+    setFocusMode(!document.body.classList.contains('focus'));
   }
 
   toolbar.addEventListener('click', (event) => {
@@ -690,12 +1491,32 @@ ${content}
     });
     if (action === 'code') return insertCode();
     if (action === 'copy') return copyHtml();
+    if (action === 'pdf') return exportPdf().catch((err) => console.error(err));
     if (action === 'theme') return toggleTheme();
+    if (action === 'focus') return toggleFocus();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const key = String(event.key || '').toLowerCase();
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'f') {
+      event.preventDefault();
+      toggleFocus();
+      return;
+    }
+    if (key === 'escape' && document.body.classList.contains('focus')) {
+      event.preventDefault();
+      setFocusMode(false);
+    }
   });
 
   editor.value = document.getElementById('starter').textContent.trim();
   editor.addEventListener('input', render);
   render();
+  syncThemeToggle();
+
+  const focusSaved = readSetting('texler_focus');
+  if (focusSaved === '1') setFocusMode(true);
+  syncFocusToggle();
 </script>
 </body>
 </html>
