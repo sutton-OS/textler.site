@@ -63,6 +63,7 @@
   body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     font-family: var(--ui-font);
     color: var(--text);
     background:
@@ -170,6 +171,32 @@
   .toolbar button:not(.theme-toggle)[aria-pressed="true"] {
     background: var(--panel);
     border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  }
+
+  /* Mobile pane toggle (hidden on desktop). */
+  .pane-toggle {
+    display: none;
+    gap: 0;
+  }
+
+  .pane-toggle button {
+    border-radius: 0;
+  }
+
+  .pane-toggle button + button {
+    margin-left: -1px;
+  }
+
+  .pane-toggle button:first-child {
+    border-radius: 8px 0 0 8px;
+  }
+
+  .pane-toggle button:last-child {
+    border-radius: 0 8px 8px 0;
+  }
+
+  .pane-toggle-sep {
+    display: none;
   }
 
   .sr-only {
@@ -373,6 +400,13 @@
     transform: translateY(0);
   }
 
+  @media (hover: none) and (pointer: coarse) {
+    body.focus .toolbar {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   body.focus:not(.notes-mode) textarea {
     align-self: center;
     width: min(860px, 100%);
@@ -526,6 +560,47 @@
       grid-template-columns: 1fr;
     }
 
+    .pane-toggle {
+      display: flex;
+    }
+
+    .pane-toggle-sep {
+      display: block;
+    }
+
+    .toolbar button {
+      min-height: 44px;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .theme-toggle {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+    }
+
+    textarea {
+      font-size: 16px;
+    }
+
+    body.notes-mode .notes-textarea {
+      font-size: 16px;
+    }
+
+    body.is-mobile[data-active-pane="write"] .preview-pane {
+      display: none;
+    }
+
+    body.is-mobile[data-active-pane="preview"] .editor-pane,
+    body.is-mobile[data-active-pane="preview"] .notes-pane {
+      display: none;
+    }
+
+    body.notes-mode.is-mobile[data-active-pane="preview"] .preview-pane {
+      display: flex;
+    }
+
     .editor-pane {
       border-right: none;
       border-bottom: 1px solid var(--border);
@@ -549,6 +624,11 @@
 <body class="light">
   <div class="app" role="application">
     <header class="toolbar">
+      <div class="group pane-toggle" role="group" aria-label="Pane">
+        <button type="button" data-pane="write" aria-pressed="true">Write</button>
+        <button type="button" data-pane="preview" aria-pressed="false">Preview</button>
+      </div>
+      <span class="sep pane-toggle-sep"></span>
       <div class="group">
         <button data-action="h1" title="Heading 1">H1</button>
         <button data-action="h2" title="Heading 2">H2</button>
@@ -655,6 +735,8 @@ function hello() {
   const notesEditor = document.getElementById('notes');
   const preview = document.getElementById('preview');
   const toolbar = document.querySelector('.toolbar');
+  const paneToggle = document.querySelector('.pane-toggle');
+  const paneToggleButtons = paneToggle ? Array.from(paneToggle.querySelectorAll('button[data-pane]')) : [];
   const copyButton = document.getElementById('copy-html');
   const exportPdfButton = document.getElementById('export-pdf');
   const themeToggleButton = document.getElementById('theme-toggle');
@@ -1777,6 +1859,24 @@ ${content}
     writeSetting(key, JSON.stringify(value));
   }
 
+  const ACTIVE_PANE_KEY = 'texler_activePane';
+  let activePane = 'write';
+  const mobileMedia = window.matchMedia('(max-width: 900px)');
+
+  function syncMobileClass() {
+    document.body.classList.toggle('is-mobile', mobileMedia.matches);
+  }
+
+  function setActivePane(nextPane) {
+    if (nextPane !== 'write' && nextPane !== 'preview') return;
+    activePane = nextPane;
+    document.body.dataset.activePane = activePane;
+    paneToggleButtons.forEach((button) => {
+      const isActive = button.dataset.pane === activePane;
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+  }
+
   function slugifyTitle(text) {
     return String(text || '')
       .toLowerCase()
@@ -1879,6 +1979,17 @@ ${content}
     setNotesMode(!document.body.classList.contains('notes-mode'));
   }
 
+  if (paneToggle) {
+    paneToggle.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-pane]');
+      if (!button) return;
+      const nextPane = button.dataset.pane;
+      if (nextPane === activePane) return;
+      setActivePane(nextPane);
+      writeSetting(ACTIVE_PANE_KEY, activePane);
+    });
+  }
+
   toolbar.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
@@ -1956,7 +2067,13 @@ ${content}
 
     const previewPane = document.querySelector('.preview-pane');
     const previewHidden = !previewPane || getComputedStyle(previewPane).display === 'none';
-    assert(previewHidden, 'Preview hidden in Notes Mode');
+    const activePane = document.body.dataset.activePane || 'write';
+    const isMobile = window.innerWidth <= 900;
+    if (isMobile && activePane === 'preview') {
+      assert(!previewHidden, 'Preview visible in Notes Mode when Preview pane is active');
+    } else {
+      assert(previewHidden, 'Preview hidden in Notes Mode');
+    }
     assert(document.body.classList.contains('focus'), 'Focus enabled in Notes Mode');
     assert(document.body.classList.contains('notes-mode'), 'Notes Mode class applied');
 
@@ -2004,6 +2121,17 @@ ${content}
   }
   render();
   syncThemeToggle();
+
+  // Mobile-only pane toggle state.
+  syncMobileClass();
+  if (mobileMedia.addEventListener) {
+    mobileMedia.addEventListener('change', syncMobileClass);
+  } else if (mobileMedia.addListener) {
+    mobileMedia.addListener(syncMobileClass);
+  }
+  const savedPane = readSetting(ACTIVE_PANE_KEY);
+  if (savedPane === 'write' || savedPane === 'preview') activePane = savedPane;
+  setActivePane(activePane);
 
   const focusSaved = readSetting('texler_focus');
   if (focusSaved === '1') setFocusMode(true);
