@@ -37,11 +37,19 @@
     font-display: swap;
   }
 
+  @font-face {
+    font-family: "IBM Plex Sans";
+    src: url("IBMPlexSans-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
   :root {
     --ui-font: "SF Pro";
     --text-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
     --editor-font: "iA Writer Duo V";
-    --mono-font: "iA Writer Mono V", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --mono-font: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
 
   * {
@@ -641,6 +649,7 @@ function hello() {
 ```
 </script>
 
+<script src="pdf-fonts.js"></script>
 <script>
   const editor = document.getElementById('editor');
   const notesEditor = document.getElementById('notes');
@@ -1029,6 +1038,10 @@ ${content}
           out.push({ type: 'blockquote', blocks: blocksFromContainer(el) });
           continue;
         }
+        if (tag === 'hr') {
+          out.push({ type: 'hr' });
+          continue;
+        }
         if (tag === 'pre') {
           const code = el.textContent || '';
           out.push({ type: 'code', text: code.replace(/\n$/, '') });
@@ -1041,55 +1054,171 @@ ${content}
     return blocksFromContainer(doc.body);
   }
 
-  function exportMarkdownToPdfBytes(md) {
-    const PAGE = { width: 612, height: 792, margin: 54 }; // Letter, 8.5x11in
-    const baseFontSize = 13.5;
+  const MAC_ROMAN_CODEPOINTS = [
+    0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F,
+    0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001A, 0x001B, 0x001C, 0x001D, 0x001E, 0x001F,
+    0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
+    0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F,
+    0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, 0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E, 0x004F,
+    0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058, 0x0059, 0x005A, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
+    0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067, 0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
+    0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077, 0x0078, 0x0079, 0x007A, 0x007B, 0x007C, 0x007D, 0x007E, 0x007F,
+    0x00C4, 0x00C5, 0x00C7, 0x00C9, 0x00D1, 0x00D6, 0x00DC, 0x00E1, 0x00E0, 0x00E2, 0x00E4, 0x00E3, 0x00E5, 0x00E7, 0x00E9, 0x00E8,
+    0x00EA, 0x00EB, 0x00ED, 0x00EC, 0x00EE, 0x00EF, 0x00F1, 0x00F3, 0x00F2, 0x00F4, 0x00F6, 0x00F5, 0x00FA, 0x00F9, 0x00FB, 0x00FC,
+    0x2020, 0x00B0, 0x00A2, 0x00A3, 0x00A7, 0x2022, 0x00B6, 0x00DF, 0x00AE, 0x00A9, 0x2122, 0x00B4, 0x00A8, 0x2260, 0x00C6, 0x00D8,
+    0x221E, 0x00B1, 0x2264, 0x2265, 0x00A5, 0x00B5, 0x2202, 0x2211, 0x220F, 0x03C0, 0x222B, 0x00AA, 0x00BA, 0x03A9, 0x00E6, 0x00F8,
+    0x00BF, 0x00A1, 0x00AC, 0x221A, 0x0192, 0x2248, 0x2206, 0x00AB, 0x00BB, 0x2026, 0x00A0, 0x00C0, 0x00C3, 0x00D5, 0x0152, 0x0153,
+    0x2013, 0x2014, 0x201C, 0x201D, 0x2018, 0x2019, 0x00F7, 0x25CA, 0x00FF, 0x0178, 0x2044, 0x20AC, 0x2039, 0x203A, 0xFB01, 0xFB02,
+    0x2021, 0x00B7, 0x201A, 0x201E, 0x2030, 0x00C2, 0x00CA, 0x00C1, 0x00CB, 0x00C8, 0x00CD, 0x00CE, 0x00CF, 0x00CC, 0x00D3, 0x00D4,
+    0xF8FF, 0x00D2, 0x00DA, 0x00DB, 0x00D9, 0x0131, 0x02C6, 0x02DC, 0x00AF, 0x02D8, 0x02D9, 0x02DA, 0x00B8, 0x02DD, 0x02DB, 0x02C7,
+  ];
+
+  const MAC_ROMAN_BYTE_FOR_CODEPOINT = (() => {
+    const map = new Map();
+    for (let i = 0; i < MAC_ROMAN_CODEPOINTS.length; i++) map.set(MAC_ROMAN_CODEPOINTS[i], i);
+    return map;
+  })();
+
+  const LIGATURE_FI = String.fromCodePoint(0xFB01);
+  const LIGATURE_FL = String.fromCodePoint(0xFB02);
+
+  const applyLigatures = (text) => String(text || '')
+    .replace(/fi/g, LIGATURE_FI)
+    .replace(/fl/g, LIGATURE_FL);
+
+  const shapeText = (text, style) => (style && style.code) ? String(text || '') : applyLigatures(text);
+
+  let pdfFontAssetsPromise = null;
+
+  function base64ToBytes(b64) {
+    const bin = atob(String(b64 || ''));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
+    return out;
+  }
+
+  async function loadPdfFontAssets(measurer) {
+    if (pdfFontAssetsPromise) return pdfFontAssetsPromise;
+    pdfFontAssetsPromise = (async () => {
+      await document.fonts.load('400 12px \"IBM Plex Sans\"');
+      await document.fonts.load('600 12px \"IBM Plex Sans\"');
+      await document.fonts.load('italic 12px \"IBM Plex Sans\"');
+      await document.fonts.ready;
+
+      // Prefer embedded base64 font payloads so PDF export works when opened via file://
+      const embedded = (window.__TEXLER_PDF_FONTS || null);
+      const regularBytes = embedded ? base64ToBytes(embedded.regular) : null;
+      const italicBytes = embedded ? base64ToBytes(embedded.italic) : null;
+      const semiboldBytes = embedded ? base64ToBytes(embedded.semibold) : null;
+
+      if (!regularBytes || !italicBytes || !semiboldBytes) {
+        // As a fallback, try fetch() (works when served over http/https).
+        const fetchFont = async (src) => {
+          const res = await fetch(src);
+          if (!res.ok) throw new Error(`Failed to load font: ${src}`);
+          return new Uint8Array(await res.arrayBuffer());
+        };
+        const fetched = await Promise.all([
+          regularBytes || fetchFont('IBMPlexSans-Regular.ttf'),
+          italicBytes || fetchFont('IBMPlexSans-Italic.ttf'),
+          semiboldBytes || fetchFont('IBMPlexSans-SemiBold.ttf'),
+        ]);
+        return buildPdfFontAssets(measurer, fetched[0], fetched[1], fetched[2]);
+      }
+
+      return buildPdfFontAssets(measurer, regularBytes, italicBytes, semiboldBytes);
+    })();
+    return pdfFontAssetsPromise;
+  }
+
+  function buildPdfFontAssets(measurer, regularBytes, italicBytes, semiboldBytes) {
+    const buildWidths = (css) => {
+      const sizePx = 1000;
+      const widths = [];
+      for (let code = 32; code <= 222; code++) {
+        const cp = MAC_ROMAN_CODEPOINTS[code];
+        const ch = String.fromCodePoint(cp);
+        const w = measurer.measurePx(ch, css, sizePx);
+        widths.push(Math.round((w / sizePx) * 1000));
+      }
+      return widths;
+    };
+
+    const regularCss = '400';
+    const semiboldCss = '600';
+    const italicCss = 'italic 400';
+
+    return {
+      fonts: {
+        regular: { bytes: regularBytes, widths: buildWidths(regularCss) },
+        bold: { bytes: semiboldBytes, widths: buildWidths(semiboldCss) },
+        italic: { bytes: italicBytes, widths: buildWidths(italicCss) },
+      },
+    };
+  }
+
+  async function exportMarkdownToPdfBytes(md) {
+    const PAGE = {
+      width: 612,
+      height: 792,
+      marginLeft: 111.4666,
+      marginRight: 111.4666,
+      marginTop: 91.6,
+      marginBottom: 90,
+    };
+    const baseFontSize = 10.4;
+    const lineHeight = 16.0;
+    const paragraphAfter = 17.33;
+    const docTopOffset = 12.8;
+    const quoteIndent = 13.9;
+    const listTextIndent = 15.6;
+    const listBulletOffset = 4.05;
+    const listNumberOffset = 0.93;
+    const ruleHeight = 0.8;
+    const rulePreGap = 36.0;
+    const rulePostGap = 43.2;
+    const pageNumberY = 41.0;
+
     const measurer = (() => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const ptToPx = (pt) => pt * (96 / 72);
+      const pxToPt = (px) => px * (72 / 96);
       const fontCss = (style, sizePt) => {
-        if (style && style.code) return `${ptToPx(sizePt)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
-        const parts = [];
-        if (style && style.italic) parts.push('italic');
-        if (style && style.bold) parts.push('bold');
-        parts.push(`${ptToPx(sizePt)}px`);
-        parts.push('Helvetica, Arial, sans-serif');
-        return parts.join(' ');
+        if (style && style.code) {
+          return `${ptToPx(sizePt)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace`;
+        }
+        const weight = style && style.bold ? 600 : 400;
+        const italic = style && style.italic ? 'italic ' : '';
+        return `${italic}${weight} ${ptToPx(sizePt)}px \"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, \"SF Pro Text\", system-ui, \"Helvetica Neue\", Arial, sans-serif`;
       };
-      const measurePx = (text, style, sizePt) => {
-        ctx.font = fontCss(style, sizePt);
+      const measurePx = (text, styleOrCss, sizePt) => {
+        if (typeof styleOrCss === 'string') {
+          ctx.font = `${styleOrCss} ${sizePt}px \"IBM Plex Sans\", -apple-system, BlinkMacSystemFont, \"SF Pro Text\", system-ui, \"Helvetica Neue\", Arial, sans-serif`;
+        } else {
+          ctx.font = fontCss(styleOrCss, sizePt);
+        }
         return ctx.measureText(text).width;
       };
-      return { ptToPx, measurePx };
+      return { ptToPx, pxToPt, measurePx };
     })();
 
-    const CP1252 = new Map([
-      [0x20AC, 0x80], [0x201A, 0x82], [0x0192, 0x83], [0x201E, 0x84], [0x2026, 0x85],
-      [0x2020, 0x86], [0x2021, 0x87], [0x02C6, 0x88], [0x2030, 0x89], [0x0160, 0x8A],
-      [0x2039, 0x8B], [0x0152, 0x8C], [0x017D, 0x8E], [0x2018, 0x91], [0x2019, 0x92],
-      [0x201C, 0x93], [0x201D, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97],
-      [0x02DC, 0x98], [0x2122, 0x99], [0x0161, 0x9A], [0x203A, 0x9B], [0x0153, 0x9C],
-      [0x017E, 0x9E], [0x0178, 0x9F],
-    ]);
-
-    const toWinAnsiBytes = (text) => {
+    const toMacRomanBytes = (text) => {
       const bytes = [];
       for (const ch of String(text || '')) {
         const code = ch.codePointAt(0);
         if (code === 0x09) { bytes.push(0x20); continue; }
         if (code === 0x0D) continue;
         if (code === 0x0A) { bytes.push(0x20); continue; }
-        if (code >= 0x20 && code <= 0x7E) { bytes.push(code); continue; }
-        if (code >= 0xA0 && code <= 0xFF) { bytes.push(code); continue; }
-        if (CP1252.has(code)) { bytes.push(CP1252.get(code)); continue; }
+        const mapped = MAC_ROMAN_BYTE_FOR_CODEPOINT.get(code);
+        if (mapped !== undefined) { bytes.push(mapped); continue; }
         bytes.push(0x3F);
       }
       return bytes;
     };
 
     const pdfHexString = (text) => {
-      const bytes = toWinAnsiBytes(text);
+      const bytes = toMacRomanBytes(text);
       let hex = '';
       for (const b of bytes) hex += b.toString(16).padStart(2, '0');
       return `<${hex}>`;
@@ -1099,17 +1228,32 @@ ${content}
       if (style && style.code) return 'F5';
       const bold = style && style.bold;
       const italic = style && style.italic;
-      if (bold && italic) return 'F4';
+      if (bold && italic) return 'F3';
       if (bold) return 'F2';
       if (italic) return 'F3';
       return 'F1';
     };
 
-    const normalizeRuns = (runs) => {
+    const mergeStyle = (base, override) => {
+      const b = base || { bold: false, italic: false, code: false, link: false };
+      const o = override || {};
+      if (b.code) {
+        return { bold: Boolean(b.bold), italic: Boolean(b.italic), code: true, link: Boolean(b.link) };
+      }
+      return {
+        bold: Boolean(b.bold || o.bold),
+        italic: Boolean(b.italic || o.italic),
+        code: Boolean(b.code),
+        link: Boolean(b.link),
+      };
+    };
+
+    const normalizeRuns = (runs, styleOverride) => {
       const out = [];
       for (const r of runs || []) {
-        const style = r.style || { bold: false, italic: false, code: false, link: false };
-        const text = style.code ? String(r.text || '') : String(r.text || '').replace(/\s+/g, ' ');
+        const style = mergeStyle(r.style || { bold: false, italic: false, code: false, link: false }, styleOverride);
+        const raw = style.code ? String(r.text || '') : String(r.text || '').replace(/\s+/g, ' ');
+        const text = shapeText(raw, style);
         if (!text) continue;
         const prev = out[out.length - 1];
         if (prev && prev.style.bold === style.bold && prev.style.italic === style.italic && prev.style.code === style.code && prev.style.link === style.link) {
@@ -1121,10 +1265,10 @@ ${content}
       return out;
     };
 
-    const wrapRuns = (runs, sizePt, maxWidthPt) => {
+    const wrapRuns = (runs, sizePt, maxWidthPt, styleOverride) => {
       const maxWidthPx = measurer.ptToPx(maxWidthPt);
       const tokens = [];
-      for (const run of normalizeRuns(runs)) {
+      for (const run of normalizeRuns(runs, styleOverride)) {
         const parts = run.style.code ? [run.text] : run.text.split(/(\s+)/);
         for (const part of parts) {
           if (!part) continue;
@@ -1238,22 +1382,24 @@ ${content}
 
     const pages = [];
     let ops = [];
+    let lastBaseline = null;
     const pushPage = () => {
       pages.push(ops.join('\n'));
       ops = [];
     };
 
-    let yTop = PAGE.height - PAGE.margin;
-    let yCursor = yTop;
-    const bottom = PAGE.margin;
-    const left = PAGE.margin;
-    const right = PAGE.width - PAGE.margin;
+    const yTop = PAGE.height - PAGE.marginTop;
+    let yCursor = yTop - docTopOffset;
+    const bottom = PAGE.marginBottom;
+    const left = PAGE.marginLeft;
+    const right = PAGE.width - PAGE.marginRight;
     const defaultWidth = right - left;
 
-    const ensureLineSpace = (lineHeight) => {
-      if (yCursor - lineHeight < bottom) {
+    const ensureSpace = (space) => {
+      if (yCursor - space < bottom) {
         pushPage();
         yCursor = yTop;
+        lastBaseline = null;
       }
     };
 
@@ -1278,91 +1424,128 @@ ${content}
         ops.push(`${pdfHexString(text)} Tj`);
       }
       ops.push('ET');
+      lastBaseline = yText;
+    };
+
+    const measureLineWidthPt = (segments, sizePt) => {
+      let widthPx = 0;
+      for (const seg of segments) {
+        if (!seg.text) continue;
+        widthPx += measurer.measurePx(seg.text, seg.style, sizePt);
+      }
+      return measurer.pxToPt(widthPx);
     };
 
     const renderParagraphLike = (runs, opts) => {
       const sizePt = opts.sizePt;
-      const lineHeight = sizePt * opts.lineHeight;
-      const x = opts.x;
+      const lineHeightPt = opts.lineHeightPt;
       const width = opts.width;
       const color = opts.color;
-      const lines = wrapRuns(runs, sizePt, width);
+      const align = opts.align || 'left';
+      const lines = wrapRuns(runs, sizePt, width, opts.styleOverride);
       for (const line of lines) {
-        ensureLineSpace(lineHeight);
+        ensureSpace(lineHeightPt);
+        const x = align === 'center'
+          ? opts.x + (opts.width - measureLineWidthPt(line, sizePt)) / 2
+          : opts.x;
         drawTextLine(line, x, sizePt, color);
-        yCursor -= lineHeight;
+        yCursor -= lineHeightPt;
       }
-      yCursor -= sizePt * opts.afterSpacing;
+      yCursor -= opts.afterSpacingPt || 0;
+    };
+
+    const renderList = (block, ctx, nextBlock) => {
+      let index = 1;
+      const afterSpacingPt = nextBlock && nextBlock.type === 'hr' ? 0 : paragraphAfter;
+      for (const itemRuns of block.items || []) {
+        const lines = wrapRuns(itemRuns, baseFontSize, ctx.width - listTextIndent, ctx.styleOverride);
+        let isFirst = true;
+        for (const line of lines) {
+          ensureSpace(lineHeight);
+          if (isFirst) {
+            const marker = block.ordered ? `${index}.` : String.fromCodePoint(0x2022);
+            const markerX = ctx.x + (block.ordered ? listNumberOffset : listBulletOffset);
+            drawTextLine([{ text: marker, style: { bold: false, italic: false, code: false, link: false } }], markerX, baseFontSize, ctx.color);
+            isFirst = false;
+          }
+          drawTextLine(line, ctx.x + listTextIndent, baseFontSize, ctx.color);
+          yCursor -= lineHeight;
+        }
+        index += 1;
+      }
+      yCursor -= afterSpacingPt;
+    };
+
+    const renderRule = () => {
+      ensureSpace(rulePreGap + rulePostGap);
+      const baseline = lastBaseline !== null ? lastBaseline : (yCursor - baseFontSize);
+      const y = baseline - rulePreGap;
+      ops.push(`0 0 0 rg`);
+      ops.push(`${left.toFixed(2)} ${y.toFixed(2)} ${defaultWidth.toFixed(2)} ${ruleHeight.toFixed(2)} re f`);
+      yCursor = y - rulePostGap + baseFontSize;
+      lastBaseline = null;
     };
 
     const renderBlocks = (blocks, ctx) => {
-      for (const block of blocks) {
+      for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i];
+        const nextBlock = blocks[i + 1];
         if (block.type === 'heading') {
-          const sizePt = block.level === 1 ? 24 : block.level === 2 ? 18 : 15;
-          yCursor -= sizePt * 0.25;
           renderParagraphLike(block.runs, {
-            sizePt,
-            lineHeight: 1.25,
+            sizePt: baseFontSize,
+            lineHeightPt: lineHeight,
             x: ctx.x,
             width: ctx.width,
             color: ctx.color,
-            afterSpacing: 0.65,
+            afterSpacingPt: nextBlock && nextBlock.type === 'hr' ? 0 : paragraphAfter,
+            styleOverride: { ...(ctx.styleOverride || {}), bold: true },
+            align: 'center',
           });
           continue;
         }
         if (block.type === 'paragraph') {
           renderParagraphLike(block.runs, {
             sizePt: baseFontSize,
-            lineHeight: 1.7,
+            lineHeightPt: lineHeight,
             x: ctx.x,
             width: ctx.width,
             color: ctx.color,
-            afterSpacing: 0.75,
+            afterSpacingPt: nextBlock && nextBlock.type === 'hr' ? 0 : paragraphAfter,
+            styleOverride: ctx.styleOverride,
           });
           continue;
         }
         if (block.type === 'list') {
-          let index = 1;
-          for (const itemRuns of block.items) {
-            const prefix = block.ordered ? `${index++}. ` : '• ';
-            const runs = [{ text: prefix, style: { bold: false, italic: false, code: false, link: false } }, ...(itemRuns || [])];
-            renderParagraphLike(runs, {
-              sizePt: baseFontSize,
-              lineHeight: 1.7,
-              x: ctx.x + 18,
-              width: ctx.width - 18,
-              color: ctx.color,
-              afterSpacing: 0.35,
-            });
-          }
-          yCursor -= baseFontSize * 0.3;
+          renderList(block, ctx, nextBlock);
           continue;
         }
         if (block.type === 'code') {
           const codeLines = String(block.text || '').replace(/\r\n?/g, '\n').split('\n');
-          const sizePt = 11.5;
-          const lineHeight = sizePt * 1.5;
+          const sizePt = baseFontSize;
           const codeStyle = { bold: false, italic: false, code: true, link: false };
           for (const rawLine of codeLines) {
             const chunks = wrapTextPreserve(rawLine, codeStyle, sizePt, ctx.width);
             for (const chunk of chunks) {
-              ensureLineSpace(lineHeight);
+              ensureSpace(lineHeight);
               drawTextLine([{ text: chunk, style: codeStyle }], ctx.x, sizePt, ctx.color);
               yCursor -= lineHeight;
             }
           }
-          yCursor -= sizePt * 0.9;
+          yCursor -= paragraphAfter;
           continue;
         }
         if (block.type === 'blockquote') {
-          const quoteColor = [0.35, 0.32, 0.28];
-          yCursor -= baseFontSize * 0.2;
-          renderBlocks(block.blocks || [], { x: ctx.x + 18, width: ctx.width - 18, color: quoteColor });
-          yCursor -= baseFontSize * 0.2;
+          renderBlocks(block.blocks || [], { x: ctx.x + quoteIndent, width: ctx.width - quoteIndent, color: ctx.color, styleOverride: { italic: true } });
+          continue;
+        }
+        if (block.type === 'hr') {
+          renderRule();
           continue;
         }
       }
     };
+
+    const fontAssets = await loadPdfFontAssets(measurer);
 
     const blocks = parseMarkdownBlocks(md);
     renderBlocks(blocks, { x: left, width: defaultWidth, color: [0, 0, 0] });
@@ -1371,14 +1554,14 @@ ${content}
     const encoder = new TextEncoder();
     const objects = [null];
     const addObject = (content) => {
-      objects.push(content);
+      objects.push({ type: 'string', content });
       return objects.length - 1;
     };
-    const setObject = (id, content) => { objects[id] = content; };
-    const createStreamObject = (data) => {
-      const len = encoder.encode(data).length;
-      return `<< /Length ${len} >>\nstream\n${data}\nendstream`;
+    const addStreamObject = (data, extraDict) => {
+      objects.push({ type: 'stream', data, extraDict: extraDict || '' });
+      return objects.length - 1;
     };
+    const setObject = (id, content) => { objects[id] = { type: 'string', content }; };
 
     const pagesId = addObject('');
     const catalogId = addObject(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
@@ -1387,17 +1570,76 @@ ${content}
     const creation = `D:${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
     const infoId = addObject(`<< /Producer ${pdfHexString('Texler')} /CreationDate ${pdfHexString(creation)} >>`);
 
-    const fontResources = `<< /Font <<\n` +
-      `/F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\n` +
-      `/F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\n` +
-      `/F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>\n` +
-      `/F4 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique >>\n` +
-      `/F5 << /Type /Font /Subtype /Type1 /BaseFont /Courier >>\n` +
-      `>> >>`;
+    const fontDescriptors = {
+      regular: {
+        flags: 32,
+        italicAngle: 0,
+        bbox: [-260, -245, 1241, 1119],
+        ascent: 1025,
+        descent: -275,
+        capHeight: 911,
+        xHeight: 683,
+        maxWidth: 1306,
+      },
+      bold: {
+        flags: 32,
+        italicAngle: 0,
+        bbox: [-307, -275, 1332, 1150],
+        ascent: 1025,
+        descent: -275,
+        capHeight: 911,
+        xHeight: 683,
+        maxWidth: 1382,
+      },
+      italic: {
+        flags: 96,
+        italicAngle: -11,
+        bbox: [-245, -245, 1180, 1120],
+        ascent: 1025,
+        descent: -275,
+        capHeight: 911,
+        xHeight: 683,
+        maxWidth: 1262,
+      },
+    };
+
+    const createEmbeddedFont = (postScriptName, fontData, widths, metrics) => {
+      const fontFileId = addStreamObject(fontData, '');
+      const desc = `<< /Type /FontDescriptor /FontName /${postScriptName} ` +
+        `/Flags ${metrics.flags} /FontBBox [${metrics.bbox.join(' ')}] ` +
+        `/ItalicAngle ${metrics.italicAngle} /Ascent ${metrics.ascent} /Descent ${metrics.descent} ` +
+        `/CapHeight ${metrics.capHeight} /StemV 0 /XHeight ${metrics.xHeight} /MaxWidth ${metrics.maxWidth} ` +
+        `/FontFile2 ${fontFileId} 0 R >>`;
+      const fontDescId = addObject(desc);
+      const widthsStr = widths.map(w => Math.max(0, Math.round(w))).join(' ');
+      const fontDict = `<< /Type /Font /Subtype /TrueType /BaseFont /${postScriptName} ` +
+        `/FontDescriptor ${fontDescId} 0 R /Encoding /MacRomanEncoding ` +
+        `/FirstChar 32 /LastChar 222 /Widths [ ${widthsStr} ] >>`;
+      return addObject(fontDict);
+    };
+
+    const fontRegularId = createEmbeddedFont('TEXLR+IBMPlexSans', fontAssets.fonts.regular.bytes, fontAssets.fonts.regular.widths, fontDescriptors.regular);
+    const fontBoldId = createEmbeddedFont('TEXLR+IBMPlexSans-SemiBold', fontAssets.fonts.bold.bytes, fontAssets.fonts.bold.widths, fontDescriptors.bold);
+    const fontItalicId = createEmbeddedFont('TEXLR+IBMPlexSans-Italic', fontAssets.fonts.italic.bytes, fontAssets.fonts.italic.widths, fontDescriptors.italic);
+    const monoFontId = addObject(`<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>`);
+
+    const fontResources = `<< /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R /F3 ${fontItalicId} 0 R /F5 ${monoFontId} 0 R >> >>`;
 
     const kids = [];
-    for (const pageOps of pages) {
-      const contentId = addObject(createStreamObject(pageOps));
+    for (let i = 0; i < pages.length; i++) {
+      const pageOps = pages[i];
+      const pageNumber = String(i + 1);
+      const pageWidth = measureLineWidthPt([{ text: pageNumber, style: { bold: false, italic: false, code: false, link: false } }], baseFontSize);
+      const pageX = (PAGE.width - pageWidth) / 2;
+      const numberOps = [];
+      numberOps.push('0 0 0 rg');
+      numberOps.push('BT');
+      numberOps.push(`1 0 0 1 ${pageX.toFixed(2)} ${pageNumberY.toFixed(2)} Tm`);
+      numberOps.push(`/F1 ${baseFontSize.toFixed(2)} Tf`);
+      numberOps.push(`${pdfHexString(pageNumber)} Tj`);
+      numberOps.push('ET');
+      const contentData = encoder.encode(`${pageOps}\n${numberOps.join('\n')}\n`);
+      const contentId = addStreamObject(contentData, '');
       const pageId = addObject(
         `<< /Type /Page /Parent ${pagesId} 0 R ` +
         `/MediaBox [0 0 ${PAGE.width} ${PAGE.height}] ` +
@@ -1417,10 +1659,23 @@ ${content}
     let offset = chunks[0].length + chunks[1].length;
     for (let id = 1; id < objects.length; id++) {
       offsets[id] = offset;
-      const objStr = `${id} 0 obj\n${objects[id]}\nendobj\n`;
-      const buf = encoder.encode(objStr);
-      chunks.push(buf);
-      offset += buf.length;
+      const obj = objects[id];
+      if (obj.type === 'stream') {
+        const dict = obj.extraDict ? `<< ${obj.extraDict} /Length ${obj.data.length} >>` : `<< /Length ${obj.data.length} >>`;
+        const header = `${id} 0 obj\n${dict}\nstream\n`;
+        const footer = `\nendstream\nendobj\n`;
+        const headerBuf = encoder.encode(header);
+        const footerBuf = encoder.encode(footer);
+        chunks.push(headerBuf);
+        chunks.push(obj.data);
+        chunks.push(footerBuf);
+        offset += headerBuf.length + obj.data.length + footerBuf.length;
+      } else {
+        const objStr = `${id} 0 obj\n${obj.content}\nendobj\n`;
+        const buf = encoder.encode(objStr);
+        chunks.push(buf);
+        offset += buf.length;
+      }
     }
 
     const xrefStart = offset;
@@ -1456,7 +1711,7 @@ ${content}
 
     try {
       const md = editor.value || '';
-      const bytes = exportMarkdownToPdfBytes(md);
+      const bytes = await exportMarkdownToPdfBytes(md);
       downloadBytes(bytes, buildPdfFilename(md), 'application/pdf');
     } finally {
       if (exportPdfButton) {
@@ -1721,7 +1976,7 @@ ${content}
     }
 
     const editorFont = getComputedStyle(editor).fontFamily || '';
-    assert(editorFont.includes('iA Writer Mono V'), 'Notes Mode uses iA Writer Mono V');
+    assert(editorFont.includes('ui-monospace') || editorFont.includes('SF Mono') || editorFont.includes('Menlo'), 'Notes Mode uses a system monospace font');
 
     if (!wasNotes) setNotesMode(false);
 
